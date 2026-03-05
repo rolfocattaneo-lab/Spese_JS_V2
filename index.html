@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GestioneSpese JS</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <h1>GestioneSpese (JS)</h1>
+      <div class="sub">IndexedDB • Multi-utente • Conti • Categorie • CSV 1:1 • Report</div>
+    </div>
+
+    <nav class="tabsBar">
+      <div class="tabs">
+        <button class="tab active" data-tab="spese">Spese</button>
+        <button class="tab" data-tab="utenti">Utenti</button>
+        <button class="tab" data-tab="conti">Conti</button>
+        <button class="tab" data-tab="categorie">Categorie</button>
+        <button class="tab" data-tab="importexport">Import/Export</button>
+        <button class="tab" data-tab="report">Report</button>
+      </div>
+
+      <div class="activeUserInline">
+        <span class="muted">Utente attivo:</span>
+        <select id="activeUserSelect"></select>
+        <button id="btnChangeActiveUser" class="ghost" type="button">Cambia</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="wrap">
+
+    <!-- MODAL: scelta utente all'avvio -->
+    <div id="bootModal" class="modal hidden">
+      <div class="modalCard">
+        <div class="split">
+          <h3>Seleziona utente attivo</h3>
+        </div>
+        <div class="hint">Serve per impostare i default (inserimento e filtri). Potrai cambiarlo in alto quando vuoi.</div>
+
+        <label>Utente</label>
+        <select id="bootUserSelect"></select>
+
+        <div class="actions end">
+          <button id="btnBootContinue" class="primary" type="button">Continua</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPESE -->
+    <section id="tab-spese" class="panel">
+
+      <div class="grid">
+        <!-- Nuova spesa: collapsible mobile -->
+        <div class="card collapsible" data-collapsible="newExpense">
+          <button class="collapsibleHeader" type="button" data-collapsible-toggle>
+            <span>Nuova spesa</span>
+            <span class="chev">▾</span>
+          </button>
+
+          <div class="collapsibleBody">
+            <div class="row2">
+              <div>
+                <label>Utente</label>
+                <select id="e_user"></select>
+                <div class="hint">Di default è l’utente attivo. Se lo cambi, la spesa viene salvata per il nuovo utente.</div>
+              </div>
+              <div>
+                <label>Conto (obbligatorio)</label>
+                <select id="e_account"></select>
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
+                <label>Descrizione</label>
+                <input id="e_desc" placeholder="Es. Supermercato" />
+              </div>
+              <div>
+                <label>Importo (€)</label>
+                <input id="e_amount" type="text" inputmode="decimal" placeholder="Es. 12,50" />
+              </div>
+            </div>
+
+            <div class="row3">
+              <div>
+                <label>Data spesa</label>
+                <input id="e_date" type="date" />
+              </div>
+
+              <div>
+                <label>Categoria</label>
+                <select id="e_category"></select>
+                <div class="hint">Gestisci categorie nella tab “Categorie”.</div>
+              </div>
+
+              <div>
+                <label>Ricorrente</label>
+                <select id="e_rec">
+                  <option value="0">No</option>
+                  <option value="1">Sì</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
+                <label>Data fine ricorrenza</label>
+                <input id="e_recEnd" type="date" />
+              </div>
+              <div>
+                <label>Ricevuta (IMG/PDF) facoltativa</label>
+                <input id="e_attach" type="file" accept="image/*,application/pdf" />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="primary" id="btnAddExpense" type="button">Aggiungi</button>
+              <button id="btnClearExpense" class="ghost" type="button">Pulisci</button>
+            </div>
+
+            <div class="hint" id="storageHint"></div>
+          </div>
+        </div>
+
+        <!-- Filtri: collapsible mobile -->
+        <div class="card collapsible" data-collapsible="filters">
+          <button class="collapsibleHeader" type="button" data-collapsible-toggle>
+            <span>Filtri (data obbligatoria)</span>
+            <span class="chev">▾</span>
+          </button>
+
+          <div class="collapsibleBody">
+            <div class="row2">
+              <div>
+                <label>Da</label>
+                <input id="f_from" type="date" />
+              </div>
+              <div>
+                <label>A</label>
+                <input id="f_to" type="date" />
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
+                <label>Utente</label>
+                <select id="f_user"></select>
+              </div>
+              <div>
+                <label>Conto</label>
+                <select id="f_account"></select>
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
+                <label>Categoria</label>
+                <select id="f_category"></select>
+              </div>
+              <div>
+                <label>Testo (descrizione)</label>
+                <input id="f_text" placeholder="Es. benzina" />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="primary" id="btnApplyFilters" type="button">Applica</button>
+              <button id="btnResetFilters" class="ghost" type="button">Reset</button>
+            </div>
+
+            <div class="kpi">
+              <span id="kpiFiltered" class="pill">Filtrate: 0</span>
+              <span id="kpiTotal" class="pill ok">Totale: € 0,00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Elenco: collapsible mobile -->
+      <div class="card collapsible" data-collapsible="list">
+        <button class="collapsibleHeader" type="button" data-collapsible-toggle>
+          <span>Elenco spese</span>
+          <span class="chev">▾</span>
+        </button>
+
+        <div class="collapsibleBody">
+          <div class="split">
+            <h2 class="h2tight">Elenco spese</h2>
+          </div>
+
+          <!-- Desktop table -->
+          <div class="tableWrap desktopOnly">
+            <table>
+              <thead>
+                <tr>
+                  <th>Utente</th>
+                  <th>Conto</th>
+                  <th>ID</th>
+                  <th>Data</th>
+                  <th>Categoria</th>
+                  <th>Descrizione</th>
+                  <th>Ricorr.</th>
+                  <th>Ricevuta</th>
+                  <th class="r">Importo</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyExpenses"></tbody>
+            </table>
+          </div>
+
+          <!-- Mobile cards -->
+          <div id="mobileExpenses" class="mobileOnly"></div>
+
+          <div id="emptyExpenses" class="hint">Nessuna spesa trovata.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- UTENTI -->
+    <section id="tab-utenti" class="panel hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>Nuovo utente</h2>
+          <label>Nome utente</label>
+          <input id="u_name" placeholder="Es. Rodolfo" />
+          <div class="actions">
+            <button id="btnAddUser" class="primary" type="button">Aggiungi</button>
+          </div>
+          <div class="hint">Ogni utente ha un progressivo spese separato.</div>
+        </div>
+
+        <div class="card">
+          <h2>Elenco utenti</h2>
+          <table>
+            <thead><tr><th>Nome</th><th>ID</th><th></th></tr></thead>
+            <tbody id="tbodyUsers"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTI -->
+    <section id="tab-conti" class="panel hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>Nuovo conto (utente → molti conti)</h2>
+
+          <div class="row2">
+            <div>
+              <label>Utente</label>
+              <select id="a_user"></select>
+            </div>
+            <div>
+              <label>Nome conto</label>
+              <input id="a_name" placeholder="Es. Contanti / Revolut / Carta" />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="btnAddAccount" class="primary" type="button">Aggiungi conto</button>
+          </div>
+          <div class="hint">Il conto è obbligatorio sulle spese e viene filtrato per utente.</div>
+        </div>
+
+        <div class="card">
+          <h2>Elenco conti</h2>
+          <div class="hint">Mostro conti dell’utente selezionato:</div>
+          <select id="a_filter_user"></select>
+
+          <table>
+            <thead><tr><th>Conto</th><th>ID</th><th></th></tr></thead>
+            <tbody id="tbodyAccounts"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATEGORIE -->
+    <section id="tab-categorie" class="panel hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>Nuova categoria</h2>
+          <label>Nome categoria</label>
+          <input id="c_name" placeholder="Es. Alimentari" />
+          <div class="actions">
+            <button id="btnAddCategory" class="primary" type="button">Aggiungi</button>
+          </div>
+          <div class="hint">Le spese salvano il riferimento (categoryId). La visualizzazione usa il nome categoria.</div>
+        </div>
+
+        <div class="card">
+          <h2>Elenco categorie</h2>
+          <table>
+            <thead><tr><th>Categoria</th><th>ID</th><th></th></tr></thead>
+            <tbody id="tbodyCategories"></tbody>
+          </table>
+          <div class="hint">Se elimini una categoria usata, le spese rimangono ma mostreranno “(Categoria mancante)” finché non le modifichi.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- IMPORT/EXPORT -->
+    <section id="tab-importexport" class="panel hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>Export CSV</h2>
+          <div class="actions">
+            <button class="primary" id="btnExportCsv" type="button">Scarica CSV</button>
+          </div>
+          <div class="hint mono" id="csvCols"></div>
+        </div>
+
+        <div class="card">
+          <h2>Import CSV (1:1)</h2>
+          <input id="csvFile" type="file" accept=".csv,text/csv" />
+          <div class="actions">
+            <button class="primary" id="btnImportCsv" type="button">Importa</button>
+          </div>
+          <div class="hint" id="importLog"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORT -->
+    <section id="tab-report" class="panel hidden">
+      <div class="card">
+        <div class="split">
+          <div>
+            <h2>Report</h2>
+            <div class="hint">Filtra per data (obbligatoria), utente e conto. Subtotali per categoria.</div>
+          </div>
+          <div class="actions">
+            <button class="ghost" id="btnRefreshReport" type="button">Aggiorna</button>
+            <button class="primary" id="btnPreviewPdf" type="button">Anteprima PDF</button>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Utente</label>
+            <select id="r_user"></select>
+          </div>
+          <div>
+            <label>Conto</label>
+            <select id="r_account"></select>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Categoria</label>
+            <select id="r_category"></select>
+          </div>
+          <div>
+            <label></label>
+            <div class="hint">Se lasci “Tutte”, raggruppa e mostra tutte le categorie.</div>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Da</label>
+            <input id="r_from" type="date" />
+          </div>
+          <div>
+            <label>A</label>
+            <input id="r_to" type="date" />
+          </div>
+        </div>
+
+        <div id="reportOut"></div>
+      </div>
+    </section>
+
+    <!-- MODAL EDIT -->
+    <div id="modal" class="modal hidden">
+      <div class="modalCard">
+        <div class="split">
+          <h3>Modifica spesa</h3>
+          <button id="btnCloseModal" class="ghost" type="button">Chiudi</button>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Utente</label>
+            <select id="m_user"></select>
+            <div class="hint">Se cambi utente, viene assegnato un nuovo ID progressivo per quell’utente.</div>
+          </div>
+          <div>
+            <label>Conto (obbligatorio)</label>
+            <select id="m_account"></select>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div><label>Descrizione</label><input id="m_desc" /></div>
+          <div><label>Importo (€)</label><input id="m_amount" type="text" inputmode="decimal" /></div>
+        </div>
+
+        <div class="row3">
+          <div><label>Data</label><input id="m_date" type="date" /></div>
+          <div>
+            <label>Categoria</label>
+            <select id="m_category"></select>
+          </div>
+          <div><label>Ricorrente (sola lettura)</label><input id="m_rec_ro" readonly /></div>
+        </div>
+
+        <div class="row2">
+          <div><label>Data fine ricorrenza</label><input id="m_recEnd" type="date" /></div>
+          <div>
+            <label>Ricevuta</label>
+            <div id="m_attachInfo" class="hint"></div>
+            <div class="actions">
+              <button id="btnOpenAttach" class="ghost" type="button">Apri</button>
+              <button id="btnRemoveAttach" class="danger" type="button">Rimuovi</button>
+            </div>
+            <label>Sostituisci ricevuta</label>
+            <input id="m_attach" type="file" accept="image/*,application/pdf" />
+          </div>
+        </div>
+
+        <div class="actions end">
+          <button id="btnDeleteExpense" class="danger" type="button">Elimina</button>
+          <button id="btnSaveExpense" class="primary" type="button">Salva</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
