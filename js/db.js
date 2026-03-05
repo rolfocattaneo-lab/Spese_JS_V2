@@ -1,16 +1,5 @@
 const DB_NAME = "GestioneSpeseDB";
-const DB_VER = 5;
-
-export const STORES = {
-  USERS: "users",
-  ACCOUNTS: "accounts",
-  CATEGORIES: "categories",
-  EXPENSES: "expenses",
-  META: "meta"
-};
-
-const DB_NAME = "GestioneSpeseDB";
-const DB_VER = 5;
+const DB_VER = 6;
 
 export const STORES = {
   USERS: "users",
@@ -46,15 +35,16 @@ export async function openDb(){
         cs.createIndex("by_norm", "norm", { unique: true });
       }
 
-      // EXPENSES
-      if(!db.objectStoreNames.contains(STORES.EXPENSES)){
-        const ex = db.createObjectStore(STORES.EXPENSES, { keyPath: "key" });
-        ex.createIndex("by_user", "userId");
-        ex.createIndex("by_account", "accountId");
-        ex.createIndex("by_category", "categoryId");
-        ex.createIndex("by_date", "data_spesa");
-        ex.createIndex("by_user_date", ["userId","data_spesa"]);
-      }
+// EXPENSES
+if(!db.objectStoreNames.contains("expenses")){
+  const ex = db.createObjectStore("expenses", { keyPath: "key" });
+
+  ex.createIndex("by_user", "userId");
+  ex.createIndex("by_account", "accountId");
+  ex.createIndex("by_category", "categoryId");
+  ex.createIndex("by_date", "data_spesa");
+  ex.createIndex("by_user_date", ["userId","data_spesa"]);
+}
 
       // META
       if(!db.objectStoreNames.contains(STORES.META)){
@@ -209,3 +199,4 @@ export async function setMeta(db, key, value){
   return put(db, STORES.META, { key, value });
 
 }
+
