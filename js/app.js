@@ -277,6 +277,13 @@ function setDefaultDateRangeInputs(fromId, toId){
   $(toId).value = ymd(end);
 }
 
+function getCurrentMonthRangeISO(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  return { from: ymd(start), to: ymd(end) }; // YYYY-MM-DD
+}
+
 async function setDefaultFiltersFromActive(){
   const activeUserId = await getMeta(idb, "activeUserId");
 
@@ -1083,4 +1090,5 @@ async function previewPdf(){
     expenses: exps
   });
   openPdfPreview(html);
+
 }
