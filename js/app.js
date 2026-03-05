@@ -907,13 +907,19 @@ async function removeEditAttachment(){
 
 /* ----------------- CSV ----------------- */
 async function exportAllCsv(){
-  const exps = await getAll(idb, STORES.EXPENSES);
+  const { from, to } = getCurrentMonthRangeISO();
+
+  // prendo tutte e filtro sul mese corrente (default come filtri principali)
+  let exps = await getAll(idb, STORES.EXPENSES);
+  exps = exps.filter(e => e.data_spesa >= from && e.data_spesa <= to);
+
   const csv = exportCsv(exps);
 
   const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href=url; a.download=`spese_${new Date().toISOString().slice(0,10)}.csv`;
+  a.href = url;
+  a.download = `spese_${from}_to_${to}.csv`;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
@@ -1092,3 +1098,4 @@ async function previewPdf(){
   openPdfPreview(html);
 
 }
+
