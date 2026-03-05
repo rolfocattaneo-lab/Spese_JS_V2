@@ -9,14 +9,23 @@ export const STORES = {
   META: "meta"
 };
 
+const DB_NAME = "GestioneSpeseDB";
+const DB_VER = 5;
+
+export const STORES = {
+  USERS: "users",
+  ACCOUNTS: "accounts",
+  CATEGORIES: "categories",
+  EXPENSES: "expenses",
+  META: "meta"
+};
+
 export async function openDb(){
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VER);
 
-    req.onupgradeneeded = (event) => {
+    req.onupgradeneeded = () => {
       const db = req.result;
-      const tx = req.transaction; // versionchange transaction
-      const oldVersion = event.oldVersion;
 
       // USERS
       if(!db.objectStoreNames.contains(STORES.USERS)){
@@ -31,28 +40,25 @@ export async function openDb(){
         ac.createIndex("by_user_name", ["userId","name"], { unique: true });
       }
 
-      // EXPENSES (assumiamo schema stabile keyPath="key")
-      // NOTA: NON ricreiamo qui per non perdere dati.
-
-      // CATEGORIES (nuovo)
+      // CATEGORIES
       if(!db.objectStoreNames.contains(STORES.CATEGORIES)){
         const cs = db.createObjectStore(STORES.CATEGORIES, { keyPath: "id" });
-        cs.createIndex("by_norm", "norm", { unique: true }); // norm = name lower trimmed
+        cs.createIndex("by_norm", "norm", { unique: true });
+      }
+
+      // EXPENSES
+      if(!db.objectStoreNames.contains(STORES.EXPENSES)){
+        const ex = db.createObjectStore(STORES.EXPENSES, { keyPath: "key" });
+        ex.createIndex("by_user", "userId");
+        ex.createIndex("by_account", "accountId");
+        ex.createIndex("by_category", "categoryId");
+        ex.createIndex("by_date", "data_spesa");
+        ex.createIndex("by_user_date", ["userId","data_spesa"]);
       }
 
       // META
       if(!db.objectStoreNames.contains(STORES.META)){
         db.createObjectStore(STORES.META, { keyPath: "key" });
-      }
-
-      // --- MIGRAZIONE: da categoria testo -> categoryId (se arrivi da versioni < 5)
-      if(oldVersion < 5){
-        try{
-          migrateCategories(tx);
-        }catch(e){
-          // se fallisce la migrazione, meglio non bloccare l’upgrade (ma loggare)
-          console.warn("Migrazione categorie fallita:", e);
-        }
       }
     };
 
@@ -201,4 +207,5 @@ export async function getMeta(db, key){
 }
 export async function setMeta(db, key, value){
   return put(db, STORES.META, { key, value });
+
 }
